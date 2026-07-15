@@ -72,10 +72,12 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/neo4j.gpg] https://debian.neo4j.com stable 5" | sudo tee /etc/apt/sources.list.d/neo4j.list
           sudo apt-get update
           sudo apt-get install -y neo4j
-          # Fix Neo4j log configuration for GitHub Actions environment (no systemd-managed logs)
-          sudo mkdir -p /var/log/neo4j
+          # Fix Neo4j permissions for GitHub Actions (runner user needs to own data/log/run directories)
+          sudo mkdir -p /var/log/neo4j /var/lib/neo4j/data /var/lib/neo4j/run
+          sudo chown -R neo4j:neo4j /var/lib/neo4j
+          sudo chmod -R 755 /var/lib/neo4j
+          sudo chmod 777 /var/lib/neo4j/run /var/lib/neo4j/data
           sudo chmod 777 /var/log/neo4j
-          sudo chown -R neo4j:adm /var/log/neo4j
           # Disable SecurityLogger appender that requires file access to /var/log/neo4j/security.log
           sudo sed -i '/<Logger name="org.neo4j.kernel.impl.security"/,/<\/Logger>/d' /etc/neo4j/server-logs.xml || true
           sudo sed -i 's|<appender-ref ref="SecurityLog" />||g' /etc/neo4j/server-logs.xml || true
