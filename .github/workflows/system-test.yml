@@ -61,6 +61,10 @@ jobs:
           sudo apt-get install -y postgresql postgresql-client
           sudo systemctl stop postgresql
           sudo systemctl disable postgresql
+          # Add PostgreSQL binaries to PATH (initdb, pg_ctl, psql, etc.)
+          PG_VERSION=$(ls /usr/lib/postgresql/ | head -1)
+          echo "PG_PATH=/usr/lib/postgresql/${PG_VERSION}/bin" >> $GITHUB_ENV
+          echo "/usr/lib/postgresql/${PG_VERSION}/bin" >> $GITHUB_PATH
 
       - name: Install Neo4j server (Neo4j's own signed apt repo)
         run: |
