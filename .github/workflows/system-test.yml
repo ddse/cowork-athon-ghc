@@ -72,6 +72,10 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/neo4j.gpg] https://debian.neo4j.com stable 5" | sudo tee /etc/apt/sources.list.d/neo4j.list
           sudo apt-get update
           sudo apt-get install -y neo4j
+          # Fix Neo4j log directory permissions for GitHub Actions environment
+          sudo mkdir -p /var/log/neo4j /var/lib/neo4j
+          sudo chown -R neo4j:neo4j /var/log/neo4j /var/lib/neo4j /etc/neo4j
+          sudo chmod -R 755 /var/log/neo4j /var/lib/neo4j
           sudo systemctl stop neo4j
           sudo systemctl disable neo4j
 
