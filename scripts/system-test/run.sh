@@ -119,19 +119,24 @@ PGPASSWORD="$PG_PASSWORD" createdb -h localhost -p "$PG_PORT" -U "$PG_USER" "$PG
 log "setting Neo4j initial password (no-op if already set on a prior run)"
 neo4j-admin dbms set-initial-password "$NEO4J_PASSWORD" 2>/dev/null || true
 
-log "starting Neo4j"
+log "starting Neo4j (console mode, systemd-independent)"
 if ! neo4j status >/dev/null 2>&1; then
-  neo4j start
+  neo4j console &
+  NEO4J_BG_PID=$!
   NEO4J_STARTED=1
 else
   log "Neo4j already running — reusing it, will not stop it on exit"
 fi
 
-log "waiting for Neo4j to accept bolt connections"
-for i in $(seq 1 60); do
-  (echo > /dev/tcp/localhost/7687) >/dev/null 2>&1 && break
+log "waiting for Neo4j to accept bolt connections (up to 180s)"
+for i in $(seq 1 90); do
+  (echo > /dev/tcp/localhost/7687) >/dev/null 2>&1 && { log "Neo4j bolt port open after $((i*2))s"; break; }
   sleep 2
 done
+if ! (echo > /dev/tcp/localhost/7687) >/dev/null 2>&1; then
+  fail "Neo4j bolt port never opened after 180s"
+  exit 1
+fi
 
 # --- 3. Apply migrations (real schema, same files backend ships with) -------
 
@@ -192,11 +197,18 @@ log "starting backend"
 BACKEND_PID=$!
 echo "$BACKEND_PID" > "$BACKEND_PID_FILE"
 
-log "waiting for backend to accept connections"
-for i in $(seq 1 30); do
-  curl -sf "$BACKEND_BASE_URL/health" >/dev/null 2>&1 && break
+log "waiting for backend to accept connections (up to 60s)"
+for i in $(seq 1 60); do
+  if curl -sf "$BACKEND_BASE_URL/health" >/dev/null 2>&1; then
+    log "backend health check passed after $((i))s"
+    break
+  fi
   sleep 1
 done
+if ! curl -sf "$BACKEND_BASE_URL/health" >/dev/null 2>&1; then
+  fail "backend health check never passed after 60s"
+  exit 1
+fi
 
 # --- 6. Run the real test suites against the real running stack -------------
 
