@@ -93,11 +93,16 @@ require_cmd initdb pg_ctl psql createdb pg_isready neo4j neo4j-admin cypher-shel
 
 if [[ ! -d "$PGDATA" ]]; then
   log "initializing PostgreSQL data dir at $PGDATA (first run)"
-  initdb -D "$PGDATA" --auth=md5 --username="$PG_USER" --pwfile=<(printf '%s' "$PG_PASSWORD") >/dev/null
+  initdb -D "$PGDATA" --auth=trust --username="$PG_USER" >/dev/null
 fi
 
 log "starting PostgreSQL on :$PG_PORT"
-pg_ctl -D "$PGDATA" -l "$PG_LOG" -o "-p $PG_PORT -c listen_addresses=localhost" start
+pg_ctl -D "$PGDATA" -l "$PG_LOG" -o "-p $PG_PORT -c listen_addresses=localhost -k /tmp" start
+if [[ $? -ne 0 ]]; then
+  log "ERROR: pg_ctl failed to start server. Log contents:"
+  tail -50 "$PG_LOG"
+  exit 1
+fi
 PG_STARTED=1
 
 log "waiting for PostgreSQL healthcheck"
